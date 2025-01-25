@@ -1,6 +1,5 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-// Define user schema
 const userSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
@@ -9,7 +8,7 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-  walletAddress: { type: String, default:null }
+  walletAddress: { type: String, default: null },
 });
 
 const User = mongoose.model('User', userSchema);
