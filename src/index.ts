@@ -1,9 +1,10 @@
-import { app } from "./app";
-require("dotenv").config();
-import { connectToDB } from "./config/db";
-import { DB_CONNECTION_STRING } from "./constants";
+import { app } from './app';
+import dotenv from 'dotenv';
+import { connectToDB } from './config/db';
+import { DB_CONNECTION_STRING } from './constants';
 
-console.log("DB_CONNECTION_STRING", DB_CONNECTION_STRING);
+dotenv.config();
+console.log('DB_CONNECTION_STRING', DB_CONNECTION_STRING);
 
 //Create Server
 app.listen(process.env.PORT, async () => {
