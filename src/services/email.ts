@@ -56,7 +56,7 @@ export const sendEmail = async (
 
     const transportConfig: TransportConfig = {
       port: 465,
-      host: "smtp.zoho.com",
+      host: "smtp.gmail.com",
       auth: {
         user: process.env.EMAIL || "",
         pass: process.env.PASS || "",
