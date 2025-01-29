@@ -4,7 +4,7 @@ import handlebars from "handlebars";
 import nodemailer from "nodemailer";
 
 interface EmailContext {
-  [key: string]: any;
+  [key: string]: string;
 }
 
 interface TransportConfig {
