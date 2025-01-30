@@ -1,9 +1,11 @@
-import { app } from "./app";
-import dotenv from "dotenv";
-import { connectToDB } from "./config/db";
-import { DB_CONNECTION_STRING } from "./constants";
+
+import { app } from './app';
+import dotenv from 'dotenv';
+import { connectToDB } from './config/db';
+import { DB_CONNECTION_STRING } from './constants';
 import logger from "./utils/logger.utils";
 import { Request, Response, NextFunction } from "express";
+import { notFoundMiddleware } from './model/middleware/notFoundMiddleware';
 
 dotenv.config();
 console.log("DB_CONNECTION_STRING", DB_CONNECTION_STRING);
@@ -24,6 +26,12 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   });
   next();
 });
+
+
+// 404 middleWare
+app.use(notFoundMiddleware);
+
+//Create Server
 
 app.listen(process.env.PORT, async () => {
   await connectToDB(DB_CONNECTION_STRING);
