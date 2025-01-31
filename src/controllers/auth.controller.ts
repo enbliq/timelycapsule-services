@@ -37,7 +37,7 @@ const Auth = {
       const userObj = user?.toObject();
 
       res.status(200).json({ success: true, data: userObj, token });
-    } catch (err: any) {
+    } catch (err: unknown) {
       res.status(400).json({
         success: false,
         message: err.message || "An error occurred while logging in",
