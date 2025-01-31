@@ -83,7 +83,7 @@ interface ICapsuleMethods {
 }
 
 
-interface CapsuleModel extends Model<ICapsule, {}, ICapsuleMethods> {
+interface CapsuleModel extends Model<ICapsule, object, ICapsuleMethods> {
   findByRecipientEmail(email: string): Promise<ICapsule[]>;
 }
 
