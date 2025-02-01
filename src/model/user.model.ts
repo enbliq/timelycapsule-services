@@ -9,6 +9,8 @@ const userSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
   walletAddress: { type: String, default: null },
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date },
 });
 
 const User = model("User", userSchema);
