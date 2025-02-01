@@ -6,6 +6,7 @@ const authRouter = (router: express.Router) => {
   router.post("/resendemail", Auth.resendVerificationEmail);
   router.post("/register", Auth.register);
   router.post('/forgotpassword', Auth.forgotPassword);
+  router.patch('/verify/:token/:user', Auth.verifyEmail);
 
 };
 
