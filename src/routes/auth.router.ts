@@ -5,6 +5,8 @@ const authRouter = (router: express.Router) => {
   router.post("/login", Auth.login);
   router.post("/resendemail", Auth.resendVerificationEmail);
   router.post("/register", Auth.register);
+  router.post('/forgotpassword', Auth.forgotPassword);
+
 };
 
 export default authRouter;

@@ -3,7 +3,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import User from "../model/user.model";
 import { sendEmail } from "../services/email";
-import { passwordSchema } from "../utils/joivalidators/auth";
+import { forgotPasswordSchema, passwordSchema } from "../utils/joivalidators/auth";
 import { v4 as uuid } from "uuid";
 
 const passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{6,}$/;
@@ -195,6 +195,53 @@ const Auth = {
       });
     }
   },
+
+  forgotPassword: async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+
+      const { error, value } = forgotPasswordSchema.validate(req.body);
+
+      if (error) {
+        return res.status(400).json({ success: false, message: error.message });
+      }
+
+      const user = await User.findOne({ email: value.email });
+      if (!user) {
+        return res.status(400).json({ success: false, message: 'Email not found' });
+      }
+
+      const resetPasswordToken = uuid();
+
+      const reset_link = `${process.env.NODE_ENV === 'production' ? process.env.PROD_BASE_URL : process.env.BASE_URL
+        }/auth/forgot-password?token=${resetPasswordToken}&user=${user._id?.toString()}`;
+
+      const subject = 'Reset your password';
+
+      const context = {
+        reset_link,
+        user: user.firstName
+      };
+
+      const isEmailSent = await sendEmail(email, subject, 'resetPassword', context);
+
+      if (!isEmailSent) {
+        return res.status(400).json({ success: false, message: 'An error occurred while sending' });
+      }
+
+      user.passwordResetToken = resetPasswordToken;
+      user.passwordResetExpires = new Date(Date.now() + 600000); // 10 minutes
+
+      await user.save();
+
+      return res.status(200).json({ success: true, message: 'Email sent' });
+    } catch (err: unknown) {
+      return res.status(400).json({
+        success: false,
+        message: (err instanceof Error ? err.message : 'An error occurred while creating account')
+      });
+    }
+  }
 };
 
 export { Auth };
