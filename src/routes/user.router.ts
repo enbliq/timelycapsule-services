@@ -6,6 +6,7 @@ const authRouter = (router: express.Router) => {
   router.get('/users/:id', UserController.getUserById);
   router.get('/user', auth, UserController.getCurrentUser);
   router.get('/users', auth, UserController.getAllUsers);
+  router.post('/password', auth, UserController.changePassword);
 };
 
 export default authRouter;
