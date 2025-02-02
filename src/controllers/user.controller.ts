@@ -76,57 +76,142 @@ const UserController = {
     }
   },
 
+  updateUserProfile: async (req: UserRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "User not authenticated",
+        });
+      }
+
+      const allowedUpdates: any = {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        walletAddress: req.body.walletAddress,
+      };
+
+      Object.keys(allowedUpdates).forEach(
+        (key) => allowedUpdates[key] === undefined && delete allowedUpdates[key]
+      );
+
+      if (Object.keys(allowedUpdates).length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No valid fields to update",
+        });
+      }
+
+      const { error, value } = updateUserProfileSchema.validate(allowedUpdates);
+
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      const updates = {
+        ...value,
+        updatedAt: new Date(),
+      };
+
+      const user = await User.findByIdAndUpdate(userId, updates, {
+        new: true,
+        runValidators: true,
+        select: "-password -passwordResetToken -passwordResetExpires",
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Profile updated successfully",
+        data: user,
+      });
+    } catch (err: unknown) {
+      if ((err as any).name === "ValidationError") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid input data",
+          errors: Object.values((err as any).errors).map((e: any) => e.message),
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message:
+          (err as any)?.message || "An error occurred while updating profile",
+      });
+    }
+  },
+
   changePassword: async (req: UserRequest, res: Response) => {
     try {
-        const userId = req.user._id;
-        const { error, value } = updateUserProfileSchema.validate(req.body);
-  
-        if (error) {
-            return res.status(400).json({
-                success: false,
-                message: error.message
-            });
-        }
-  
-        const user = await User.findById(userId);
-  
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-  
-        const isMatch = await bcrypt.compare(value.currentPassword, user.password);
-  
-        if (!isMatch) {
-            return res.status(400).json({
-                success: false,
-                message: 'Current password is incorrect'
-            });
-        }
-  
-        const hashedPassword = await bcrypt.hash(value.newPassword, 10);
-  
-        user.password = hashedPassword;
-  
-        await user.save();
-  
-        const subject = 'Password Change';
-        const isEmailSent = await sendEmail(user.email, subject, 'passwordResetSuccess', {});
-        if (!isEmailSent) {
-            return res.status(400).json({ success: false, message: 'An error occurred while sending' });
-        }
-  
-        return res.status(200).json({
-            success: true,
-            message: 'Password changed successfully'
-        });
-    } catch (err: any) {
+      const userId = req.user._id;
+      const { error, value } = updateUserProfileSchema.validate(req.body);
+
+      if (error) {
         return res.status(400).json({
-            success: false,
-            message: err?.message || 'An error occurred while changing password'
+          success: false,
+          message: error.message,
         });
+      }
+
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      const isMatch = await bcrypt.compare(
+        value.currentPassword,
+        user.password
+      );
+
+      if (!isMatch) {
+        return res.status(400).json({
+          success: false,
+          message: "Current password is incorrect",
+        });
+      }
+
+      const hashedPassword = await bcrypt.hash(value.newPassword, 10);
+      user.password = hashedPassword;
+      await user.save();
+
+      const subject = "Password Change";
+      const isEmailSent = await sendEmail(
+        user.email,
+        subject,
+        "passwordResetSuccess",
+        {}
+      );
+      if (!isEmailSent) {
+        return res
+          .status(400)
+          .json({ success: false, message: "An error occurred while sending" });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Password changed successfully",
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        success: false,
+        message: err?.message || "An error occurred while changing password",
+      });
     }
   },
 
