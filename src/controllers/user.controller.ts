@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
-import { Request, Response } from 'express';
-import User from '../model/user.model';
+import bcrypt from "bcryptjs";
+import { Request, Response } from "express";
+import User from "../model/user.model";
 
 export interface UserRequest extends Request {
   user?: any;
@@ -15,7 +15,7 @@ const UserController = {
       if (!id) {
         return res.status(400).json({
           success: false,
-          message: 'User ID is required',
+          message: "User ID is required",
         });
       }
 
@@ -24,19 +24,19 @@ const UserController = {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
       }
 
       return res.status(200).json({
         success: true,
-        message: 'User retrieved successfully',
+        message: "User retrieved successfully",
         data: user,
       });
     } catch (err: any) {
       return res.status(400).json({
         success: false,
-        message: err?.message || 'An error occurred while retrieving user',
+        message: err?.message || "An error occurred while retrieving user",
       });
     }
   },
@@ -48,7 +48,7 @@ const UserController = {
       if (!userId) {
         return res.status(401).json({
           success: false,
-          message: 'User not authenticated',
+          message: "User not authenticated",
         });
       }
 
@@ -57,19 +57,54 @@ const UserController = {
       if (!user) {
         return res.status(404).json({
           success: false,
-          message: 'User not found',
+          message: "User not found",
         });
       }
 
       return res.status(200).json({
         success: true,
-        message: 'User retrieved successfully',
+        message: "User retrieved successfully",
         data: user,
       });
     } catch (err: any) {
       return res.status(400).json({
         success: false,
-        message: err?.message || 'An error occurred while retrieving user',
+        message: err?.message || "An error occurred while retrieving user",
+      });
+    }
+  },
+
+  getAllUsers: async (req: Request, res: Response) => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const skip = (page - 1) * limit;
+
+      const [users, total] = await Promise.all([
+        User.find().skip(skip).limit(limit).select("-password"),
+        User.countDocuments(),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return res.status(200).json({
+        success: true,
+        message: "Users retrieved successfully",
+        data: {
+          users,
+          pagination: {
+            currentPage: page,
+            totalPages,
+            totalUsers: total,
+            hasNextPage: page < totalPages,
+            hasPrevPage: page > 1,
+          },
+        },
+      });
+    } catch (err: any) {
+      return res.status(400).json({
+        success: false,
+        message: err?.message || "An error occurred while retrieving users",
       });
     }
   },
