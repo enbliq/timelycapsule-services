@@ -8,17 +8,17 @@ interface AuthRequest extends Request {
 
 export default async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const authorizationHeader = req?.headers?.authorization;
+    const authorizationHeader = req?.headers?.authorization || '';
 
     if (!authorizationHeader?.startsWith('Bearer')) {
-      return res
+      res
         .status(401)
         .json({ success: false, message: 'You are not logged in' });
     }
 
     const token = authorizationHeader.split(' ')[1];
     if (!token) {
-      return res
+      res
         .status(401)
         .json({ success: false, message: 'You are not logged in' });
     }
@@ -30,7 +30,7 @@ export default async (req: AuthRequest, res: Response, next: NextFunction) => {
     const user = await User.findOne({ email: decodedJwt.email });
 
     if (!user) {
-      return res
+      res
         .status(401)
         .json({ success: false, message: 'You are not logged in' });
     }
@@ -38,8 +38,6 @@ export default async (req: AuthRequest, res: Response, next: NextFunction) => {
     req.user = user;
     next();
   } catch (err) {
-    return res
-      .status(401)
-      .json({ success: false, message: 'You are not logged in' });
+    res.status(401).json({ success: false, message: 'You are not logged in' });
   }
 };
