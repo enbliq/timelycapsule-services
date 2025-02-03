@@ -27,10 +27,8 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 app.use('/api/', appRoute());
-// 404 middleWare
-app.use(notFoundMiddleware);
 
-//Create Server
+app.use(notFoundMiddleware);
 
 app.listen(process.env.PORT, async () => {
   await connectToDB(DB_CONNECTION_STRING);
