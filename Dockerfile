@@ -1,15 +1,19 @@
 # Build stage
-FROM node:20-alpine as builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
 COPY tsconfig.json ./
 
-RUN npm ci --include=dev
+# Skip husky installation in CI/Docker
+ENV HUSKY=0
+ENV CI=true
+
+# Install dependencies without running prepare script
+RUN npm ci --include=dev --ignore-scripts
 
 COPY src/ ./src/
-COPY .env ./.env
 
 RUN npm run build
 
@@ -19,12 +23,13 @@ FROM node:20-alpine
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV HUSKY=0
 
 # Add a non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 COPY package*.json ./
-RUN npm ci --only=production && \
+RUN npm ci --omit=dev --ignore-scripts && \
     npm cache clean --force
 
 COPY --from=builder /app/dist ./dist

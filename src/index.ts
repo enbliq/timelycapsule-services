@@ -8,7 +8,6 @@ import { notFoundMiddleware } from './middleware/notFoundMiddleware';
 import appRoute from '../src/routes';
 
 dotenv.config();
-console.log('DB_CONNECTION_STRING', DB_CONNECTION_STRING);
 
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.on('finish', () => {
