@@ -15,7 +15,7 @@ const passwordPattern = /^(?=.[a-z])(?=.[A-Z])(?=.\d)(?=.[\W_]).{6,}$/;
 const Auth = {
   register: async (req: Request, res: Response) => {
     try {
-      const { error, value } = passwordSchema.validate(req.body);
+      const { error } = passwordSchema.validate(req.body);
 
       if (error) {
         res.status(400).json({ success: false, message: error.message });

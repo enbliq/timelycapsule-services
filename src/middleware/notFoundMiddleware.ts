@@ -1,11 +1,7 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import logger from '../utils/logger.utils';
 
-export function notFoundMiddleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+export function notFoundMiddleware(req: Request, res: Response) {
   const error = new Error('Route not found');
 
   logger.error(error);
