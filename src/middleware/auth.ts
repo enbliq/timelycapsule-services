@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Request, Response, NextFunction } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import User from '../model/user.model';
@@ -37,7 +39,7 @@ export default async (req: AuthRequest, res: Response, next: NextFunction) => {
 
     req.user = user;
     next();
-  } catch (err) {
+  } catch (err: any) {
     return res
       .status(401)
       .json({ success: false, message: 'You are not logged in' });
