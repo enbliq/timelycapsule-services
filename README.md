@@ -115,3 +115,15 @@ This guide explains how to start the development environment for the project usi
 
    - **Backend API**: Accessible at [http://localhost:3000](http://localhost:3000).
    - **PostgreSQL Database**: Accessible at `localhost:27017` (make sure to use the `MONGO_USER`, `DB_NAME` and `MONGO_PASSWORD` from the `.env` file).
+
+To stop the development server and remove the docker containers and volume run:
+
+```bash
+docker compose down -v
+
+# ✔ Container timelycapsule-backend                   Removed               0.0s
+# ✔ Container timelycapsule-db                        Removed               0.0s
+ # ✔ Volume timelycapsule-services_db_data             Removed               0.0s
+# ✔ Network timelycapsule-services_timelycapsule-net  Removed               0.2s
+
+```

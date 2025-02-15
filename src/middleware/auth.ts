@@ -8,7 +8,7 @@ interface AuthRequest extends Request {
   user?: any;
 }
 
-export default async (req: AuthRequest, res: Response, next: NextFunction) => {
+export default async (req: AuthRequest, res: Response, next: NextFunction): Promise<void>  => {
   try {
     const authorizationHeader = req?.headers?.authorization || '';
 
@@ -40,8 +40,9 @@ export default async (req: AuthRequest, res: Response, next: NextFunction) => {
     req.user = user;
     next();
   } catch (err: any) {
-    return res
+     res
       .status(401)
       .json({ success: false, message: 'You are not logged in' });
+    return;
   }
 };

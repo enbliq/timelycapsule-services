@@ -5,7 +5,7 @@ import { DB_CONNECTION_STRING } from './constants';
 import logger from './utils/logger.utils';
 import { Request, Response, NextFunction } from 'express';
 import { notFoundMiddleware } from './middleware/notFoundMiddleware';
-import appRoute from '../src/routes';
+import appRoute from './routes';
 
 dotenv.config();
 
