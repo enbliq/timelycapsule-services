@@ -98,8 +98,17 @@ This guide explains how to start the development environment for the project usi
    git clone <repository-url>
    cd <repository-folder>
    ```
+2. **Copy env variable**
 
-2. **Build and Start Services**
+   Create an `.env` file in the root folder and copy the contents of the  `.env.example into it.
+
+   Alternatively, run this command in your terminal:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. **Build and Start Services**
 
    To build and run the entire development environment, use the following command:
 
@@ -111,7 +120,7 @@ This guide explains how to start the development environment for the project usi
 
    - Start the backend and PostgreSQL database containers.
 
-3. **Access the Application**
+4. **Access the Application**
 
    - **Backend API**: Accessible at [http://localhost:3000](http://localhost:3000).
    - **PostgreSQL Database**: Accessible at `localhost:27017` (make sure to use the `MONGO_USER`, `DB_NAME` and `MONGO_PASSWORD` from the `.env` file).
