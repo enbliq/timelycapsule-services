@@ -1,320 +1,169 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import bcrypt from 'bcryptjs';
-import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import User from '../model/user.model';
-import { sendEmail } from '../services/email';
-import {
-  forgotPasswordSchema,
-  passwordSchema,
-} from '../utils/joivalidators/auth';
-import { v4 as uuid } from 'uuid';
+// src/controllers/auth.controller.ts
 
-const passwordPattern = /^(?=.[a-z])(?=.[A-Z])(?=.\d)(?=.[\W_]).{6,}$/;
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import User from "../model/user.model";
+import { generateAccessToken } from "../utils/jwt";
 
-const Auth = {
-  register: async (req: Request, res: Response) => {
+export const Auth = {
+  async register(req: Request, res: Response) {
     try {
-      const { error } = passwordSchema.validate(req.body);
+      const { email, password, firstName, lastName } = req.body;
 
-      if (error) {
-        res.status(400).json({ success: false, message: error.message });
+      // Validate inputs
+      if (!email || !password || !firstName || !lastName) {
+        return res.status(400).json({ message: "All fields are required." });
       }
 
-      const {
-        firstName,
-        lastName,
-        email,
-        password,
-        confirmPassword,
-        walletAddress,
-      } = req.body;
-
-      if (!email || !password) {
-        res
-          .status(400)
-          .json({ success: false, message: 'All fields are required' });
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: "Invalid email format." });
       }
 
-      if (password === confirmPassword) {
-        res
-          .status(400)
-          .json({ success: false, message: "Password doesn't match." });
+      if (password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters." });
       }
 
-      if (!passwordPattern.test(password)) {
-        res.status(400).json({
-          success: false,
-          message:
-            'Password must be at least 6 characters long and include uppercase letters, lowercase letters, digits, and special characters.',
-        });
-      }
-
+      // Check if user already exists
       const existingUser = await User.findOne({ email });
-
       if (existingUser) {
-        res
-          .status(400)
-          .json({ success: false, message: 'Email already in use' });
+        return res.status(409).json({ message: "Email already in use." });
       }
 
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const email_verification = uuid();
+      // Hash password
+      const saltRounds = 10;
+      const passwordHash = await bcrypt.hash(password, saltRounds);
 
+      // Create new user
       const newUser = await User.create({
         firstName,
         lastName,
+        displayName: `${firstName} ${lastName}`,
         email,
-        walletAddress,
-        password: hashedPassword,
-        email_verification,
+        password: passwordHash,
+        roles: ['user'],
+        guest: false,
+        isVerified: false,
+        provider: 'local',
       });
 
-      const verification_link = `${
-        process.env.NODE_ENV === 'production'
-          ? process.env.PROD_BASE_URL
-          : process.env.BASE_URL
-      }/auth/verify?email_verification=${email_verification}&user=${newUser._id?.toString()}`;
+      // Generate JWT token
+      const accessToken = generateAccessToken(newUser._id.toString());
 
-      const context: any = {
-        verification_link,
+      // Return success response
+      return res.status(201).json({
+        message: "User registered successfully.",
         user: {
+          id: newUser._id,
+          displayName: newUser.displayName,
           email: newUser.email,
+          roles: newUser.roles,
+          guest: newUser.guest,
+          isVerified: newUser.isVerified,
         },
-      };
-
-      const subject = 'Kindly verify your email';
-      const isEmailSent = await sendEmail(
-        email,
-        subject,
-        'verifyAccount',
-        context
-      );
-      if (!isEmailSent) {
-        res
-          .status(400)
-          .json({ success: false, message: 'An error occurred while sending' });
-      }
-
-      res.status(201).json({ success: true, data: newUser });
-    } catch (err: any) {
-      res.status(400).json({
-        success: false,
-        message: err.message || 'An error occurred while creating account',
+        accessToken,
       });
+    } catch (error) {
+      console.error("Registration Error:", error);
+      return res.status(500).json({ message: "Server error during registration." });
     }
   },
-  login: async (req: Request, res: Response) => {
+
+  //Auth Login
+  async login(req: Request, res: Response) {
     try {
       const { email, password } = req.body;
 
+      // Validate inputs
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required." });
+      }
+
+      // Find user by email
       const user = await User.findOne({ email });
       if (!user) {
-        res
-          .status(400)
-          .json({ success: false, message: 'Invalid email or password' });
+        return res.status(401).json({ message: "Invalid email or password." });
       }
 
-      const isPasswordMatch = await bcrypt.compare(
-        password,
-        user?.password as string
-      );
-      if (!isPasswordMatch) {
-        res
-          .status(400)
-          .json({ success: false, message: 'Invalid email or password' });
+      // If user is a guest, reject login
+      if (user.guest) {
+        return res.status(403).json({ message: "Guest users cannot login." });
       }
 
-      const token = jwt.sign(
-        {
-          id: user?._id,
-          email: user?.email,
-        },
-        process.env.JWT_SECRET as string,
-        { expiresIn: '30d' }
-      );
-
-      const userObj = user?.toObject();
-
-      res.status(200).json({ success: true, data: userObj, token });
-    } catch (err: any) {
-      res.status(400).json({
-        success: false,
-        message: err.message || 'An error occurred while logging in',
-      });
-    }
-  },
-
-  resendVerificationEmail: async (req: Request, res: Response) => {
-    try {
-      const { email } = req.body;
-      const user: any = await User.findOne({ email });
-      if (!user) {
-        res.status(400).json({ success: false, message: 'Email not found' });
+      // Verify password
+      const isPasswordValid = await bcrypt.compare(password, user.password || '');
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid email or password." });
       }
 
-      if (user.isVerified) {
-        res
-          .status(400)
-          .json({ success: false, message: 'Email already verified' });
-      }
-      const email_verification = uuid();
-      const verification_link = `${
-        process.env.NODE_ENV === 'production'
-          ? process.env.PROD_BASE_URL
-          : process.env.BASE_URL
-      }}/auth/verify?email_verification=${email_verification}&user=${user._id?.toString()}`;
-      const context: any = {
-        verification_link,
+      // Update last login timestamp
+      user.lastLoginAt = new Date();
+      await user.save();
+
+      // Generate JWT token
+      const accessToken = generateAccessToken(user._id.toString());
+
+      // Return success response
+      return res.status(200).json({
+        message: "Login successful.",
         user: {
+          id: user._id,
+          displayName: user.displayName,
           email: user.email,
+          roles: user.roles,
+          guest: user.guest,
+          isVerified: user.isVerified,
         },
-      };
-
-      const subject = 'Kindly verify your email';
-      const isEmailSent = await sendEmail(
-        email,
-        subject,
-        'verifyAccount',
-        context
-      );
-
-      if (!isEmailSent) {
-        res.status(400).json({
-          success: false,
-          message: 'An error occurred while sending email',
-        });
-      }
-
-      user.email_verification = email_verification;
-      await user.save();
-      res.status(200).json({ success: true, message: 'Email sent' });
-    } catch (err: any) {
-      res.status(400).json({
-        success: false,
-        message: err.message || 'An error occurred while creating account',
+        accessToken,
       });
+    } catch (error) {
+      console.error("Login Error:", error);
+      return res.status(500).json({ message: "Server error during login." });
     }
   },
 
-  forgotPassword: async (req: Request, res: Response) => {
+  //Auth Logout
+  async logout(req: Request, res: Response) {
     try {
-      const { email } = req.body;
-
-      const { error, value } = forgotPasswordSchema.validate(req.body);
-
-      if (error) {
-        res.status(400).json({ success: false, message: error.message });
-      }
-
-      const user: any = await User.findOne({ email: value.email });
-      if (!user) {
-        res.status(400).json({ success: false, message: 'Email not found' });
-      }
-
-      const resetPasswordToken = uuid();
-
-      const reset_link = `${
-        process.env.NODE_ENV === 'production'
-          ? process.env.PROD_BASE_URL
-          : process.env.BASE_URL
-      }/auth/forgot-password?token=${resetPasswordToken}&user=${user._id?.toString()}`;
-
-      const subject = 'Reset your password';
-
-      const context = {
-        reset_link,
-        user: user.firstName,
-      };
-
-      const isEmailSent = await sendEmail(
-        email,
-        subject,
-        'resetPassword',
-        context
-      );
-
-      if (!isEmailSent) {
-        res
-          .status(400)
-          .json({ success: false, message: 'An error occurred while sending' });
-      }
-
-      user.passwordResetToken = resetPasswordToken;
-      user.passwordResetExpires = new Date(Date.now() + 600000); // 10 minutes
-
-      await user.save();
-
-      res.status(200).json({ success: true, message: 'Email sent' });
-    } catch (err: unknown) {
-      res.status(400).json({
-        success: false,
-        message:
-          err instanceof Error
-            ? err.message
-            : 'An error occurred while creating account',
-      });
+      // Since JWTs are stateless, just tell client to delete their token
+      return res.status(200).json({ message: "Logged out successfully." });
+    } catch (error) {
+      console.error("Logout Error:", error);
+      return res.status(500).json({ message: "Server error during logout." });
     }
   },
-
-  verifyEmail: async (req: Request, res: Response) => {
+//Guess Session
+  async guestSession(req: Request, res: Response) {
     try {
-      const { token, user: userId } = req.params;
-      const user: any = await User.findOne({
-        _id: userId,
-        email_verification: token,
+      // Create a random guest display name
+      const randomSuffix = crypto.randomBytes(3).toString('hex'); // e.g., 'f3a9c2'
+      const displayName = `Guest_${randomSuffix}`;
+
+      const guestUser = await User.create({
+        displayName,
+        guest: true,
+        roles: ['guest'],
+        email: null,
+        password: null,
+        isVerified: true, // guests don't need email verification
+        provider: 'local',
+        lastLoginAt: new Date(),
       });
 
-      if (!user) {
-        res.status(400).json({ success: false, message: 'Invalid token' });
-      }
+      const accessToken = generateAccessToken(guestUser._id.toString());
 
-      if (user.isVerified) {
-        res
-          .status(400)
-          .json({ success: false, message: 'Email already verified' });
-      }
-
-      user.isVerified = true;
-
-      await user.save();
-
-      const get_started_link = `${
-        process.env.NODE_ENV === 'production'
-          ? process.env.PROD_BASE_URL
-          : process.env.BASE_URL
-      }}/auth/login`;
-      const context: any = {
-        get_started_link,
+      return res.status(201).json({
+        message: "Guest session created successfully.",
         user: {
-          firstName: user.fullName,
+          id: guestUser._id,
+          displayName: guestUser.displayName,
+          guest: true,
         },
-      };
-      const subject = 'Welcome to Timely Capsule';
-      const isEmailSent = await sendEmail(
-        user.email,
-        subject,
-        'welcomeEmail',
-        context
-      );
-
-      if (!isEmailSent) {
-        res.status(400).json({
-          success: false,
-          message: 'An error occurred while sending email',
-        });
-      }
-
-      res
-        .status(200)
-        .json({ success: true, message: 'Email verified successfully' });
-    } catch (err: any) {
-      res.status(400).json({
-        success: false,
-        message: err.message || 'An error occurred while verifying email',
+        accessToken,
       });
+    } catch (error) {
+      console.error("Guest Session Error:", error);
+      return res.status(500).json({ message: "Server error creating guest session." });
     }
   },
 };
-
-export { Auth };
