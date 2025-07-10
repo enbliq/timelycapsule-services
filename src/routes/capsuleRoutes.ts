@@ -5,8 +5,10 @@ import {
   getCapsuleById,
   getCapsules,
   getMyCapsules,
+  getCapsuleStatus,
 } from '../controllers/capsuleController';
 import { AuthMiddleware } from '../middleware/auth';
+import { RateLimiter } from '../middleware/rateLimiter';
 
 const router: Router = express.Router();
 
@@ -38,6 +40,15 @@ router.get(
   AuthMiddleware.requireAuth,
   (req: Request, res: Response) => {
     getCapsuleById(req, res);
+  }
+);
+
+router.get(
+  '/capsules/:id/status',
+  RateLimiter.general,
+  AuthMiddleware.requireAuth,
+  (req: Request, res: Response) => {
+    getCapsuleStatus(req, res);
   }
 );
 

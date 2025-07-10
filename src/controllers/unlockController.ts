@@ -144,6 +144,7 @@ export const unlockCapsule = async (req: Request, res: Response) => {
 
     capsule.status = 'unlocked';
     capsule.unlockedAt = new Date();
+    capsule.lastActivityAt = new Date();
     await capsule.save();
 
     unlockAttempt.successful = true;
