@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
-import { Capsule } from '../models/Capsule';
-import { User } from '../models/User';
+import { Capsule } from '../model/Capsule';
+import { User } from '../model/User';
+import { UnlockAttempt } from '../model/UnlockAttempt';
 import mongoose from 'mongoose';
-import { Media } from 'src/model';
+import { Media } from '../model';
+import { CapsuleStatusResponse } from './interfaces/status.interface';
 
 interface CreateCapsuleRequest {
   title: string;
@@ -896,6 +898,113 @@ export const updateCapsule = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
+export const getCapsuleStatus = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required',
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid capsule ID',
+      });
+    }
+
+    const capsule = await Capsule.findById(id)
+      .select('-content.text -unlockPassword')
+      .populate('creator', 'username firstName lastName')
+      .populate('collaborators', 'username firstName lastName');
+
+    if (!capsule) {
+      return res.status(404).json({
+        success: false,
+        message: 'Capsule not found',
+      });
+    }
+
+    // Check if user has access to this capsule
+    const isCreator = capsule.creator._id.toString() === userId;
+    const isCollaborator = capsule.collaborators.some(
+      (c: any) => c._id.toString() === userId
+    );
+    const isPublic = capsule.visibility === 'public';
+
+    if (!isCreator && !isCollaborator && !isPublic) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied',
+      });
+    }
+
+    // Get countdown information
+    const countdown = (capsule as any).detailedCountdown;
+
+    // Get timeline information
+    const timeline = {
+      createdAt: capsule.createdAt,
+      sealedAt: capsule.sealedAt,
+      unlockedAt: capsule.unlockedAt,
+      lastActivityAt: capsule.lastActivityAt,
+    };
+
+    // Get public status information
+    const publicInfo = {
+      canUnlock: (capsule as any).isUnlockable && (isCreator || isCollaborator),
+      requiresPassword: !!capsule.unlockPassword,
+      requiresLocation: !!capsule.unlockLocation,
+      unlockDate: capsule.unlockDate,
+    };
+
+    // Prepare response data
+    const responseData: CapsuleStatusResponse = {
+      success: true,
+      data: {
+        id: capsule._id.toString(),
+        status: capsule.status,
+        countdown,
+        timeline,
+        publicInfo,
+      },
+    };
+
+    // Add private information for creators and collaborators
+    if (isCreator || isCollaborator) {
+      // Get unlock attempts count
+      const unlockAttempts = await UnlockAttempt.countDocuments({
+        capsule: capsule._id,
+      });
+
+      const lastUnlockAttempt = await UnlockAttempt.findOne({
+        capsule: capsule._id,
+      })
+        .sort({ createdAt: -1 })
+        .select('createdAt');
+
+      responseData.data.privateInfo = {
+        unlockAttempts,
+        lastUnlockAttempt: lastUnlockAttempt?.createdAt,
+        passwordHint: capsule.passwordHint,
+      };
+    }
+
+    res.status(200).json(responseData);
+  } catch (error) {
+    console.error('Get capsule status error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve capsule status',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined,
     });
   }

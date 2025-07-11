@@ -42,6 +42,7 @@ export interface ICapsule extends Document {
   sealedAt?: Date;
   unlockedAt?: Date;
   expiresAt?: Date;
+  lastActivityAt: Date;
 
   createdAt: Date;
   updatedAt: Date;
@@ -163,6 +164,10 @@ const capsuleSchema = new Schema<ICapsule>(
     sealedAt: Date,
     unlockedAt: Date,
     expiresAt: Date,
+    lastActivityAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
   {
     timestamps: true,
@@ -191,5 +196,56 @@ capsuleSchema.virtual('isUnlockable').get(function () {
     (!this.unlockDate || this.unlockDate <= new Date())
   );
 });
+
+// Detailed countdown calculation
+capsuleSchema.virtual('detailedCountdown').get(function () {
+  if (!this.unlockDate || this.status === 'unlocked') {
+    return {
+      totalMs: 0,
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isExpired: true
+    };
+  }
+
+  const now = Date.now();
+  const unlockTime = this.unlockDate.getTime();
+  const totalMs = Math.max(0, unlockTime - now);
+  const isExpired = totalMs === 0;
+
+  const seconds = Math.floor((totalMs / 1000) % 60);
+  const minutes = Math.floor((totalMs / (1000 * 60)) % 60);
+  const hours = Math.floor((totalMs / (1000 * 60 * 60)) % 24);
+  const days = Math.floor(totalMs / (1000 * 60 * 60 * 24));
+
+  return {
+    totalMs,
+    days,
+    hours,
+    minutes,
+    seconds,
+    isExpired
+  };
+});
+
+// Activity tracking middleware
+capsuleSchema.pre('save', function(next) {
+  // Update lastActivityAt on any modification
+  if (this.isModified() && !this.isModified('lastActivityAt')) {
+    this.lastActivityAt = new Date();
+  }
+  next();
+});
+
+// Static method to update activity
+capsuleSchema.statics.updateActivity = function(capsuleId: mongoose.Types.ObjectId) {
+  return this.findByIdAndUpdate(
+    capsuleId,
+    { lastActivityAt: new Date() },
+    { new: true }
+  );
+};
 
 export const Capsule = mongoose.model<ICapsule>('Capsule', capsuleSchema);
