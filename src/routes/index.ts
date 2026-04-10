@@ -5,6 +5,7 @@ import unlockRoutes from "./unlockRoutes";
 import capsuleRoutes from "./capsuleRoutes";
 import mediaRoutes from "./mediaRoutes";
 import contributionRoutes from "./contributionRoutes";
+import analyticsRoutes from "./analyticsRoutes";
 
 const router: Router = express.Router();
 
@@ -20,6 +21,7 @@ v1Router.use("/unlock", unlockRoutes);
 v1Router.use("/", capsuleRoutes);
 v1Router.use("/", mediaRoutes);
 v1Router.use("/", contributionRoutes);
+v1Router.use("/", analyticsRoutes);
 
 // Mount v1 router under /api/v1
 router.use("/api/v1", v1Router);
